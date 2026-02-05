@@ -1685,6 +1685,8 @@ static void esp_mqtt_task(void *pv)
                 last_retransmit = platform_tick_get_ms();
                 item = outbox_dequeue(client->outbox, TRANSMITTED, &msg_tick);
                 if (item && (last_retransmit - msg_tick > client->config->message_retransmit_timeout))  {
+                    ESP_LOGD(TAG, "Reenviando mensaje QoS > 0, msg_id=%d, tiempo transcurrido=%llu ms", 
+                             client->mqtt_state.pending_msg_id, last_retransmit - msg_tick);
                     if (mqtt_resend_queued(client, item) == ESP_OK) {
 #ifdef MQTT_PROTOCOL_5
                         if (client->mqtt_state.connection.information.protocol_ver == MQTT_PROTOCOL_V_5) {
@@ -2062,8 +2064,10 @@ static inline int mqtt_client_enqueue_publish(esp_mqtt_client_handle_t client, c
     return pending_msg_id;
 }
 
-int esp_mqtt_client_publish(esp_mqtt_client_handle_t client, const char *topic, const char *data, int len, int qos, int retain)
-{
+int esp_mqtt_client_publish(esp_mqtt_client_handle_t client, const char *topic,
+                            const char *data, int len, int qos, int retain) {
+
+   // ESP_LOGI(TAG, "**** ****MQTT publish realizado al topic='%s' con qos=%d y retain=%d, len=%d", topic, qos, retain, len);
     if (!client) {
         ESP_LOGE(TAG, "Client was not initialized");
         return -1;
@@ -2154,6 +2158,13 @@ MQTT_API_LOCK(client);
         } else {
             // Message was sent correctly
             sending = false;
+
+    ESP_LOGI(TAG, "MQTT publish realizado al topic='%s' con qos=%d y retain=%d, len=%d", topic, qos, retain, len);
+    if (data && len > 0) {
+        char preview[80] = {0};
+        snprintf(preview, sizeof(preview) - 1, "%.*s", len > 70 ? 70 : len, data);
+        ESP_LOGI(TAG, "Payload: %s%s", preview, len > 70 ? "..." : "");
+    }
         }
     }
 
